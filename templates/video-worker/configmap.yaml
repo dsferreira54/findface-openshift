@@ -1,0 +1,125 @@
+{{- if .Values.videoWorker.enabled }}
+{{- $streamerURL := .Values.videoWorker.streamer.url }}
+{{- if not $streamerURL }}
+{{- $streamerURL = printf "%s-findface-video-worker:%v" .Release.Name .Values.videoWorker.streamer.port }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-findface-video-worker
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: video-worker
+data:
+  findface-video-worker.yaml: |
+    device_number: 0
+    input: ''
+    exit_on_first_finished: false
+    batch_size: 10
+    metrics_port: 0
+    resize_scale: 1
+    capacity: 30
+    ntls_addr: {{ .Values.externalDependencies.ntlsAddress }}
+    save_dir: ''
+    resolutions: []
+    strict_resolutions: false
+    labels: {}
+    use_time_from_sei: false
+    frame_buffer_size: 128
+    events_queue_size: 720
+    #512 #256
+    skip_count: 0
+    mgr:
+      cmd: ''
+      static: {{ .Values.externalDependencies.videoManagerRpcAddress }}
+      id_prefix: ''
+    streamer:
+      port: {{ .Values.videoWorker.streamer.port }}
+      url: {{ $streamerURL }}
+      tracks: true
+      tracks_last: true
+      max_backpressure: 33554432
+    liveness:
+      fnk: ''
+      norm: ''
+      batch_size: 32
+      interval: 1
+      stdev_cnt: 0
+    imotion:
+      shared_decoder: false
+    send:
+      threads: 10
+    #8
+      queue_limit: 720
+    #512 #256
+      disable_drops: false
+    recorder:
+      enabled: false
+      chunk_size: 8388608
+      storage_dir: /var/cache/findface/video-worker-recorder
+      video_storage:
+        url: {{ .Values.externalDependencies.videoStorageUrl }}
+        threads: 4
+        timeout: 15
+        max_retries: 5
+    video_decoder:
+      cpu: false
+    models:
+      cache_dir: /var/cache/findface/models_cache
+      detectors:
+    #    body:
+    #      fnk_path: /usr/share/findface-data/models/detector/bodydet.gustav_normal.021.gpu.fnk
+    #      min_size: 60
+        face:
+          fnk_path: /usr/share/findface-data/models/detector/facedet.kali.005.gpu.fnk
+          min_size: 60
+      normalizers:
+    #    body_norm:
+    #      fnk_path: /usr/share/findface-data/models/facenorm/cropbbox.v2.gpu.fnk
+    #    body_norm_quality:
+    #      fnk_path: /usr/share/findface-data/models/facenorm/cropbbox.v2.gpu.fnk
+        face_norm:
+          fnk_path: /usr/share/findface-data/models/facenorm/crop2x.v2_maxsize400.gpu.fnk
+        face_norm_quality:
+          fnk_path: /usr/share/findface-data/models/facenorm/crop1x.v2_maxsize400.gpu.fnk
+      extractors:
+    #    body_quality:
+    #      fnk_path: /usr/share/findface-data/models/pedattr/pedattr.quality.v0.gpu.fnk
+    #      normalizer: body_norm_quality
+        face_quality:
+          fnk_path: /usr/share/findface-data/models/faceattr/faceattr.quality.v5.gpu.fnk
+          normalizer: face_norm_quality
+      objects:
+     #   body:
+     #     normalizer: body_norm
+     #     quality: body_quality
+     #     track_features: ''
+        face:
+          normalizer: face_norm
+          quality: face_quality
+          track_features: ''
+    face:
+      min_size: 60
+      detector: ''
+      norm: ''
+      quality: ''
+      norm_quality: ''
+      track_features: ''
+      track_features_norm: ''
+    body:
+      min_size: 60
+      detector: ''
+      norm: ''
+      quality: ''
+      norm_quality: ''
+      track_features: ''
+      track_features_norm: ''
+    car:
+      min_size: 60
+      detector: ''
+      norm: ''
+      quality: ''
+      norm_quality: ''
+      track_features: ''
+      track_features_norm: ''
+{{- end }}

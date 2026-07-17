@@ -1,0 +1,120 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+externalDependencies:
+  ntlsAddress: "10.32.200.19:3133"
+  videoManagerRpcAddress: "10.32.200.19:18811"
+  videoStorageUrl: "http://127.0.0.1:18611"
+
+models:
+  pvc:
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+
+extractionApi:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker.int.ntl/ntech/universe/extraction-api-gpu
+    tag: ffserver-11.240325
+    pullPolicy: IfNotPresent
+  args:
+    - --config=/etc/findface-extraction-api.ini
+  hostNetwork: false
+  dnsPolicy: ClusterFirst
+  cudaVisibleDevices: "0"
+  gpu:
+    enabled: true
+    count: 1
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 18701
+  config:
+    listenHost: "0.0.0.0"
+  cache:
+    pvc:
+      storageClassName: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 2Gi
+  podSecurityContext: {}
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+videoWorker:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker.int.ntl/ntech/universe/video-worker-gpu
+    tag: ffserver-11.240325
+    pullPolicy: IfNotPresent
+  args:
+    - --config=/etc/findface-video-worker.yaml
+  hostNetwork: false
+  dnsPolicy: ClusterFirst
+  cudaVisibleDevices: "1"
+  gpu:
+    enabled: true
+    count: 1
+  streamer:
+    port: 19001
+    url: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 19001
+  cache:
+    pvc:
+      storageClassName: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 2Gi
+  recorder:
+    pvc:
+      storageClassName: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 5Gi
+  podSecurityContext: {}
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+route:
+  extractionApi:
+    enabled: false
+    host: ""
+    tls:
+      enabled: true
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,19 @@
+{{- if and .Values.videoWorker.enabled .Values.videoWorker.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-findface-video-worker
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: video-worker
+spec:
+  type: {{ .Values.videoWorker.service.type }}
+  selector:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: video-worker
+  ports:
+    - name: streamer
+      protocol: TCP
+      port: {{ .Values.videoWorker.service.port }}
+      targetPort: {{ .Values.videoWorker.service.port }}
+{{- end }}

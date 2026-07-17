@@ -1,0 +1,46 @@
+Escopo deste chart
+- Este chart modela o recorte observado no export mantendo apenas um video-worker: findface-extraction-api e findface-video-worker.
+- Dependencias externas permanecem fora deste chart:
+  - NTLS: {{ .Values.externalDependencies.ntlsAddress }}
+  - Video Manager RPC: {{ .Values.externalDependencies.videoManagerRpcAddress }}
+  - Video Storage URL (recorder): {{ .Values.externalDependencies.videoStorageUrl }}
+
+Observado diretamente no export
+- docker-compose original com 4 servicos: pause, extraction-api e 2 workers de video.
+- extraction-api em modelo de rede via pause; workers em host networking no compose.
+- Montagens criticas:
+  - configuracao em /etc/findface-*.yaml|.ini
+  - modelos em /usr/share/findface-data/models (RO)
+  - cache em /var/cache/findface/models_cache (RW)
+  - recorder em /var/cache/findface/video-worker-recorder (RW)
+
+Inferido para modelagem Kubernetes/OpenShift
+- O export analisado representa um recorte parcial da topologia completa FindFace Multi.
+- O chart usa Deployments com Services e Route opcional para simplificar operacao em OpenShift.
+- hostNetwork fica desativado por padrao para reduzir acoplamento e necessidade de permissao adicional.
+
+Validacao humana pendente antes de producao
+- Confirmar se hostNetwork e obrigatorio para os video-workers no ambiente alvo.
+- Confirmar estrategia de GPU no cluster (nvidia.com/gpu, node selectors, capacidade real por node).
+- Confirmar politica de storage para modelos/cache (PVC compartilhado vs distribuicao por imagem/objeto).
+- Confirmar se componentes externos (NTLS/Video Manager/Video Storage) estao acessiveis a partir do namespace do OpenShift.
+- Confirmar acesso ao registry privado docker.int.ntl via pull secret/espelhamento.
+- Confirmar se os workers extras (configs worker-3 e worker-4) devem entrar no escopo.
+
+Recursos criados por este release
+- ConfigMaps:
+  - {{ .Release.Name }}-findface-extraction-api
+  - {{ .Release.Name }}-findface-video-worker
+- PVCs:
+  - {{ .Release.Name }}-findface-models
+  - {{ .Release.Name }}-findface-extraction-cache
+  - {{ .Release.Name }}-findface-video-worker-cache
+  - {{ .Release.Name }}-findface-video-worker-recorder
+- Deployments:
+  - {{ .Release.Name }}-findface-extraction-api
+  - {{ .Release.Name }}-findface-video-worker
+- Services:
+  - {{ .Release.Name }}-findface-extraction-api
+  - {{ .Release.Name }}-findface-video-worker
+- Route (opcional):
+  - {{ .Release.Name }}-findface-extraction-api (quando route.extractionApi.enabled=true)

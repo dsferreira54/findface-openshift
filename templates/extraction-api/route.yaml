@@ -1,0 +1,23 @@
+{{- if and .Values.extractionApi.enabled .Values.extractionApi.service.enabled .Values.route.extractionApi.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Release.Name }}-findface-extraction-api
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: extraction-api
+spec:
+{{- if .Values.route.extractionApi.host }}
+  host: {{ .Values.route.extractionApi.host }}
+{{- end }}
+  to:
+    kind: Service
+    name: {{ .Release.Name }}-findface-extraction-api
+  port:
+    targetPort: http
+{{- if .Values.route.extractionApi.tls.enabled }}
+  tls:
+    termination: {{ .Values.route.extractionApi.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.extractionApi.tls.insecureEdgeTerminationPolicy }}
+{{- end }}
+{{- end }}

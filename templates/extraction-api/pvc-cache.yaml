@@ -1,0 +1,20 @@
+{{- if .Values.extractionApi.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-findface-extraction-cache
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: extraction-cache
+spec:
+  accessModes:
+{{- range .Values.extractionApi.cache.pvc.accessModes }}
+    - {{ . }}
+{{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.extractionApi.cache.pvc.size }}
+{{- if .Values.extractionApi.cache.pvc.storageClassName }}
+  storageClassName: {{ .Values.extractionApi.cache.pvc.storageClassName }}
+{{- end }}
+{{- end }}

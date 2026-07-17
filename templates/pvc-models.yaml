@@ -1,0 +1,20 @@
+{{- if or .Values.extractionApi.enabled .Values.videoWorker.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-findface-models
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: models
+spec:
+  accessModes:
+{{- range .Values.models.pvc.accessModes }}
+    - {{ . }}
+{{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.models.pvc.size }}
+{{- if .Values.models.pvc.storageClassName }}
+  storageClassName: {{ .Values.models.pvc.storageClassName }}
+{{- end }}
+{{- end }}

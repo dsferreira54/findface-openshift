@@ -1,0 +1,19 @@
+{{- if and .Values.extractionApi.enabled .Values.extractionApi.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-findface-extraction-api
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: extraction-api
+spec:
+  type: {{ .Values.extractionApi.service.type }}
+  selector:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: extraction-api
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.extractionApi.service.port }}
+      targetPort: {{ .Values.extractionApi.service.port }}
+{{- end }}

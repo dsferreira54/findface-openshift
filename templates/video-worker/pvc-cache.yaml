@@ -1,0 +1,20 @@
+{{- if .Values.videoWorker.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-findface-video-worker-cache
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: video-worker-cache
+spec:
+  accessModes:
+{{- range .Values.videoWorker.cache.pvc.accessModes }}
+    - {{ . }}
+{{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.videoWorker.cache.pvc.size }}
+{{- if .Values.videoWorker.cache.pvc.storageClassName }}
+  storageClassName: {{ .Values.videoWorker.cache.pvc.storageClassName }}
+{{- end }}
+{{- end }}
