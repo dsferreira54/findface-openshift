@@ -43,7 +43,7 @@ spec:
           memory: {{ .Values.models.loader.resources.limits.memory }}
       volumeMounts:
         - name: models
-          mountPath: /usr/share/findface-data/models
+          mountPath: /tmp/models
   volumes:
     - name: models
       persistentVolumeClaim:
