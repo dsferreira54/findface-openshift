@@ -17,6 +17,7 @@ Dependencias externas permanecem fora do chart:
 charts/findface/
   Chart.yaml
   values.yaml
+  argocd-application-findface-hml.yaml
   templates/
     extraction-api/
       configmap.yaml
@@ -48,6 +49,9 @@ charts/findface/
   - Nodes com GPU e rotulo/afinidade conforme sua politica
 - Se imagens privadas exigirem autenticacao:
   - Secret de pull criado no namespace
+- Para deploy via OpenShift GitOps:
+  - Operador OpenShift GitOps instalado
+  - Namespace padrao do Argo CD: `openshift-gitops`
 
 ## Valores principais (values)
 
@@ -163,6 +167,53 @@ helm upgrade --install findface ./charts/findface \
   -f values-prod.yaml \
   --set route.extractionApi.enabled=true \
   --set route.extractionApi.host=extraction-api.apps.seu-cluster.exemplo
+```
+
+## Deploy via OpenShift GitOps (Argo CD)
+
+Este repositorio inclui uma `Application` pronta para homologacao:
+
+- `charts/findface/argocd-application-findface-hml.yaml`
+
+Namespaces padrao usados neste fluxo:
+
+- `openshift-gitops`: namespace do Argo CD (OpenShift GitOps)
+- `findface-hml`: namespace de destino da aplicacao
+
+### 1) Ajustar o repositório Git no manifesto
+
+Edite o campo `spec.source.repoURL` em `charts/findface/argocd-application-findface-hml.yaml` para o URL real do seu repositório.
+
+Se necessario, ajuste tambem:
+
+- `spec.source.targetRevision` (ex.: `main`)
+- `spec.source.path` (atualmente `charts/findface`)
+
+### 2) Aplicar a Application no namespace do OpenShift GitOps
+
+```bash
+oc apply -f charts/findface/argocd-application-findface-hml.yaml -n openshift-gitops
+```
+
+Observacoes:
+
+- O manifesto usa `syncOptions: [CreateNamespace=true]`, entao o `findface-hml` pode ser criado automaticamente.
+- A `Application` esta com `syncPolicy.automated` habilitada (`prune` e `selfHeal`).
+
+### 3) Acompanhar sincronizacao
+
+```bash
+oc -n openshift-gitops get applications.argoproj.io
+oc -n openshift-gitops describe application findface-hml
+```
+
+### 4) Verificar recursos no namespace de destino
+
+```bash
+oc -n findface-hml get pods
+oc -n findface-hml get pvc
+oc -n findface-hml get svc
+oc -n findface-hml get route
 ```
 
 ## Verificacao pos-deploy

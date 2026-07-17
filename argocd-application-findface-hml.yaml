@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: findface-hml
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dsferreira54/findface-openshift.git
+    targetRevision: main
+    path: charts/findface
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: findface-hml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
