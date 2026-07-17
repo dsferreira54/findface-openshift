@@ -70,7 +70,7 @@ videoWorker:
     - --config=/etc/findface-video-worker.yaml
   hostNetwork: false
   dnsPolicy: ClusterFirst
-  cudaVisibleDevices: "1"
+  cudaVisibleDevices: "0"
   gpu:
     enabled: true
     count: 1

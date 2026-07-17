@@ -96,6 +96,7 @@ extractionApi:
       size: 5Gi
 
 videoWorker:
+  cudaVisibleDevices: "0"
   gpu:
     enabled: true
     count: 1
@@ -263,6 +264,8 @@ helm uninstall findface -n findface
   - Verifique `imagePullSecrets` e credenciais de registry.
 - Pods nao sobem por GPU:
   - Verifique device plugin NVIDIA e capacidade de nodes.
+  - Para erro `CUDA_ERROR_NO_DEVICE`, valide `videoWorker.cudaVisibleDevices`.
+  - Em Kubernetes/OpenShift com `limits.nvidia.com/gpu: 1`, use preferencialmente `videoWorker.cudaVisibleDevices: "0"`.
 - Falha de conexao com servicos externos:
   - Revise `externalDependencies.*` e politicas de rede.
 - PVC pendente:
