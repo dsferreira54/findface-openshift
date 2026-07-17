@@ -31,6 +31,8 @@ charts/findface/
       pvc-recorder.yaml
       deployment.yaml
       service.yaml
+    models-loader/
+      pod.yaml
     pvc-models.yaml
     NOTES.txt
 ```
@@ -64,6 +66,7 @@ Campos mais importantes:
 - `externalDependencies.videoStorageUrl`
 - `imagePullSecrets`
 - `models.pvc.*`
+- `models.loader.*`
 - `extractionApi.*`
 - `videoWorker.*`
 - `route.extractionApi.*` (OpenShift)
@@ -215,6 +218,79 @@ oc -n findface-hml get pods
 oc -n findface-hml get pvc
 oc -n findface-hml get svc
 oc -n findface-hml get route
+```
+
+## Bootstrap dos models no PVC (oc rsync)
+
+Se o worker subir com erro como:
+
+- `failed to open file /usr/share/findface-data/models/...`
+- `failed to initialize models`
+
+isso indica que o PVC de models foi montado, mas ainda esta vazio.
+
+O chart inclui um pod auxiliar opcional (`models-loader`) para popular esse PVC.
+
+### Opcao A: usando Helm diretamente
+
+1) Habilitar o loader:
+
+```bash
+helm upgrade --install findface ./charts/findface \
+  -n findface-hml \
+  -f values-prod.yaml \
+  --set models.loader.enabled=true
+```
+
+2) Esperar o pod ficar `Running`:
+
+```bash
+oc -n findface-hml get pod findface-findface-models-loader -w
+```
+
+3) Copiar os models para o PVC montado:
+
+```bash
+oc -n findface-hml rsync ./opt-server-export/models/ \
+  findface-findface-models-loader:/usr/share/findface-data/models/
+```
+
+4) Desabilitar o loader:
+
+```bash
+helm upgrade --install findface ./charts/findface \
+  -n findface-hml \
+  -f values-prod.yaml \
+  --set models.loader.enabled=false
+```
+
+### Opcao B: usando OpenShift GitOps (Argo CD)
+
+1) No arquivo de values usado pela Application, ajustar:
+
+```yaml
+models:
+  loader:
+    enabled: true
+```
+
+2) Sincronizar a Application no Argo CD.
+
+3) Executar o `oc rsync` igual ao passo acima.
+
+4) Depois de copiar os models, voltar `models.loader.enabled` para `false` e sincronizar novamente.
+
+### Verificacao rapida
+
+```bash
+oc -n findface-hml exec deploy/findface-findface-video-worker -- \
+  ls -lah /usr/share/findface-data/models/detector
+```
+
+Se os arquivos `.fnk` esperados aparecerem, reinicie o worker:
+
+```bash
+oc -n findface-hml rollout restart deploy/findface-findface-video-worker
 ```
 
 ## Verificacao pos-deploy

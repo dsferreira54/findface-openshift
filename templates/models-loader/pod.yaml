@@ -1,0 +1,63 @@
+{{- if .Values.models.loader.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-findface-models-loader
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: models-loader
+spec:
+{{- if .Values.imagePullSecrets }}
+  imagePullSecrets:
+{{- range .Values.imagePullSecrets }}
+    - name: {{ . }}
+{{- end }}
+{{- end }}
+  restartPolicy: Always
+{{- with .Values.models.loader.podSecurityContext }}
+  securityContext:
+{{ toYaml . | indent 4 }}
+{{- end }}
+  containers:
+    - name: models-loader
+      image: "{{ .Values.models.loader.image.repository }}:{{ .Values.models.loader.image.tag }}"
+      imagePullPolicy: {{ .Values.models.loader.image.pullPolicy }}
+      command:
+{{- range .Values.models.loader.command }}
+        - {{ . | quote }}
+{{- end }}
+      args:
+{{- range .Values.models.loader.args }}
+        - {{ . | quote }}
+{{- end }}
+{{- with .Values.models.loader.containerSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+{{- end }}
+      resources:
+        requests:
+          cpu: {{ .Values.models.loader.resources.requests.cpu }}
+          memory: {{ .Values.models.loader.resources.requests.memory }}
+        limits:
+          cpu: {{ .Values.models.loader.resources.limits.cpu }}
+          memory: {{ .Values.models.loader.resources.limits.memory }}
+      volumeMounts:
+        - name: models
+          mountPath: /usr/share/findface-data/models
+  volumes:
+    - name: models
+      persistentVolumeClaim:
+        claimName: {{ .Release.Name }}-findface-models
+{{- with .Values.models.loader.nodeSelector }}
+  nodeSelector:
+{{ toYaml . | indent 4 }}
+{{- end }}
+{{- with .Values.models.loader.affinity }}
+  affinity:
+{{ toYaml . | indent 4 }}
+{{- end }}
+{{- with .Values.models.loader.tolerations }}
+  tolerations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+{{- end }}
