@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/dsferreira54/findface-openshift.git
     targetRevision: main
-    path: charts/findface
+    path: .
   destination:
     server: https://kubernetes.default.svc
     namespace: findface-hml
