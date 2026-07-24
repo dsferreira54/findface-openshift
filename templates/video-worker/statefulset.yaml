@@ -1,12 +1,13 @@
 {{- if .Values.videoWorker.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-findface-video-worker
+  name: findface-video-worker
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: video-worker
 spec:
+  serviceName: findface-video-worker
   replicas: {{ .Values.videoWorker.replicaCount }}
   selector:
     matchLabels:
@@ -39,6 +40,12 @@ spec:
             - {{ . | quote }}
 {{- end }}
           env:
+{{- if .Values.videoWorker.service.loadBalancer.enabled }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+{{- end }}
             - name: CUDA_VISIBLE_DEVICES
               value: {{ .Values.videoWorker.cudaVisibleDevices | quote }}
           ports:
@@ -62,7 +69,11 @@ spec:
           volumeMounts:
             - name: video-worker-config
               mountPath: /etc/findface-video-worker.yaml
+{{- if .Values.videoWorker.service.loadBalancer.enabled }}
+              subPathExpr: $(POD_NAME).yaml
+{{- else }}
               subPath: findface-video-worker.yaml
+{{- end }}
               readOnly: true
             - name: models
               mountPath: /usr/share/findface-data/models
@@ -74,16 +85,10 @@ spec:
       volumes:
         - name: video-worker-config
           configMap:
-            name: {{ .Release.Name }}-findface-video-worker
+            name: findface-video-worker
         - name: models
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-findface-models
-        - name: video-worker-cache
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-findface-video-worker-cache
-        - name: video-worker-recorder
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-findface-video-worker-recorder
+            claimName: findface-models
 {{- with .Values.videoWorker.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
@@ -95,5 +100,38 @@ spec:
 {{- with .Values.videoWorker.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
+{{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: video-worker-cache
+        labels:
+          app.kubernetes.io/name: findface
+          app.kubernetes.io/component: video-worker-cache
+      spec:
+        accessModes:
+{{- range .Values.videoWorker.cache.pvc.accessModes }}
+          - {{ . }}
+{{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.videoWorker.cache.pvc.size }}
+{{- if .Values.videoWorker.cache.pvc.storageClassName }}
+        storageClassName: {{ .Values.videoWorker.cache.pvc.storageClassName }}
+{{- end }}
+    - metadata:
+        name: video-worker-recorder
+        labels:
+          app.kubernetes.io/name: findface
+          app.kubernetes.io/component: video-worker-recorder
+      spec:
+        accessModes:
+{{- range .Values.videoWorker.recorder.pvc.accessModes }}
+          - {{ . }}
+{{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.videoWorker.recorder.pvc.size }}
+{{- if .Values.videoWorker.recorder.pvc.storageClassName }}
+        storageClassName: {{ .Values.videoWorker.recorder.pvc.storageClassName }}
 {{- end }}
 {{- end }}

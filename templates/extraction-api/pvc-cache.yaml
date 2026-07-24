@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-findface-extraction-cache
+  name: findface-extraction-cache
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: extraction-cache

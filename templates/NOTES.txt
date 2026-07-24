@@ -1,5 +1,5 @@
 Escopo deste chart
-- Este chart modela o recorte observado no export mantendo apenas um video-worker: findface-extraction-api e findface-video-worker.
+- Este chart modela o recorte observado no export com extraction-api e video-worker escalavel por StatefulSet.
 - Dependencias externas permanecem fora deste chart:
   - NTLS: {{ .Values.externalDependencies.ntlsAddress }}
   - Video Manager RPC: {{ .Values.externalDependencies.videoManagerRpcAddress }}
@@ -16,7 +16,8 @@ Observado diretamente no export
 
 Inferido para modelagem Kubernetes/OpenShift
 - O export analisado representa um recorte parcial da topologia completa FindFace Multi.
-- O chart usa Deployments com Services e Route opcional para simplificar operacao em OpenShift.
+- O chart usa `Deployment` para extraction-api e `StatefulSet` para video-worker.
+- O video-worker usa Service `LoadBalancer` dedicado por pod e EgressIP dedicado por pod.
 - hostNetwork fica desativado por padrao para reduzir acoplamento e necessidade de permissao adicional.
 
 Validacao humana pendente antes de producao
@@ -29,18 +30,23 @@ Validacao humana pendente antes de producao
 
 Recursos criados por este release
 - ConfigMaps:
-  - {{ .Release.Name }}-findface-extraction-api
-  - {{ .Release.Name }}-findface-video-worker
+  - findface-extraction-api
+  - findface-video-worker
 - PVCs:
-  - {{ .Release.Name }}-findface-models
-  - {{ .Release.Name }}-findface-extraction-cache
-  - {{ .Release.Name }}-findface-video-worker-cache
-  - {{ .Release.Name }}-findface-video-worker-recorder
+  - findface-models
+  - findface-extraction-cache
 - Deployments:
-  - {{ .Release.Name }}-findface-extraction-api
-  - {{ .Release.Name }}-findface-video-worker
+  - findface-extraction-api
+- StatefulSets:
+  - findface-video-worker
+- PVCs gerados pelo StatefulSet (um por pod):
+  - `video-worker-cache-findface-video-worker-<ordinal>`
+  - `video-worker-recorder-findface-video-worker-<ordinal>`
 - Services:
-  - {{ .Release.Name }}-findface-extraction-api
-  - {{ .Release.Name }}-findface-video-worker
+  - findface-extraction-api
+  - findface-video-worker (headless)
+  - findface-video-worker-lb-<ordinal> (LoadBalancer por pod)
+- EgressIP (OpenShift OVN):
+  - `egressip-video-worker-<ip-com-hifen>` (um por pod)
 - Route (opcional):
-  - {{ .Release.Name }}-findface-extraction-api (quando route.extractionApi.enabled=true)
+  - findface-extraction-api (quando route.extractionApi.enabled=true)

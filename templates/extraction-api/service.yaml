@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-findface-extraction-api
+  name: findface-extraction-api
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: extraction-api

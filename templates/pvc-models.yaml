@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-findface-models
+  name: findface-models
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: models

@@ -4,8 +4,8 @@ fullnameOverride: ""
 imagePullSecrets: []
 
 externalDependencies:
-  ntlsAddress: "10.32.200.19:3133"
-  videoManagerRpcAddress: "10.32.200.19:18811"
+  ntlsAddress: "10.32.200.14:3133"
+  videoManagerRpcAddress: "10.32.200.14:18811"
   videoStorageUrl: "http://127.0.0.1:18611"
 
 models:
@@ -46,8 +46,8 @@ extractionApi:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker.int.ntl/ntech/universe/extraction-api-gpu
-    tag: ffserver-11.240325
+    repository: image-registry.openshift-image-registry.svc:5000/findface-hml/extraction-api-gpu
+    tag: ffserver-12.251015
     pullPolicy: IfNotPresent
   args:
     - --config=/etc/findface-extraction-api.ini
@@ -80,8 +80,8 @@ extractionApi:
       cpu: 500m
       memory: 1Gi
     limits:
-      cpu: "2"
-      memory: 4Gi
+      cpu: "16"
+      memory: 32Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -90,8 +90,8 @@ videoWorker:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker.int.ntl/ntech/universe/video-worker-gpu
-    tag: ffserver-11.240325
+    repository: image-registry.openshift-image-registry.svc:5000/findface-hml/video-worker-gpu
+    tag: ffserver-12.251015
     pullPolicy: IfNotPresent
   args:
     - --config=/etc/findface-video-worker.yaml
@@ -105,9 +105,17 @@ videoWorker:
     port: 19001
     url: ""
   service:
-    enabled: true
-    type: ClusterIP
     port: 19001
+    headless:
+      annotations: {}
+      publishNotReadyAddresses: true
+    loadBalancer:
+      enabled: true
+      addressPool: "pool-vlan70"
+      annotations: {}
+      externalTrafficPolicy: Cluster
+      loadBalancerIPs:
+        - "10.32.200.41"
   cache:
     pvc:
       storageClassName: ""
@@ -131,13 +139,15 @@ videoWorker:
       cpu: "1"
       memory: 2Gi
     limits:
-      cpu: "4"
-      memory: 8Gi
+      cpu: "16"
+      memory: 32Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  egressIP:
+    enabled: true
 
-route:
+route: #TODO: Consider removing this
   extractionApi:
     enabled: false
     host: ""

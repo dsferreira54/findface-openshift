@@ -1,0 +1,27 @@
+{{- if and .Values.videoWorker.enabled .Values.videoWorker.egressIP.enabled }}
+{{- $replicas := int .Values.videoWorker.replicaCount }}
+{{- $lbIPs := .Values.videoWorker.service.loadBalancer.loadBalancerIPs }}
+{{- if ne (len $lbIPs) $replicas }}
+{{- fail "videoWorker.service.loadBalancer.loadBalancerIPs must have the same number of entries as videoWorker.replicaCount for EgressIP generation" }}
+{{- end }}
+{{- $stsName := "findface-video-worker" }}
+{{- range $idx, $item := until $replicas }}
+{{- $ip := index $lbIPs $idx }}
+{{- if gt $idx 0 }}
+---
+{{- end }}
+apiVersion: k8s.ovn.org/v1
+kind: EgressIP
+metadata:
+  name: {{ printf "egressip-video-worker-%s" (replace "." "-" $ip) }}
+spec:
+  egressIPs:
+    - {{ $ip }}
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ $.Release.Namespace | quote }}
+  podSelector:
+    matchLabels:
+      statefulset.kubernetes.io/pod-name: {{ printf "%s-%d" $stsName $idx }}
+{{- end }}
+{{- end }}

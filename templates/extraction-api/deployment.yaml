@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-findface-extraction-api
+  name: findface-extraction-api
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: extraction-api
@@ -72,13 +72,13 @@ spec:
       volumes:
         - name: extraction-config
           configMap:
-            name: {{ .Release.Name }}-findface-extraction-api
+            name: findface-extraction-api
         - name: models
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-findface-models
+            claimName: findface-models
         - name: extraction-cache
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-findface-extraction-cache
+            claimName: findface-extraction-cache
 {{- with .Values.extractionApi.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}

@@ -3,7 +3,7 @@
 Este chart implementa o recorte analisado do ambiente exportado:
 
 - `findface-extraction-api`
-- `findface-video-worker` (apenas 1 instancia)
+- `findface-video-worker` (escalavel via `videoWorker.replicaCount`)
 
 Dependencias externas permanecem fora do chart:
 
@@ -27,10 +27,10 @@ charts/findface/
       route.yaml
     video-worker/
       configmap.yaml
-      pvc-cache.yaml
-      pvc-recorder.yaml
-      deployment.yaml
+      statefulset.yaml
       service.yaml
+      service-loadbalancers.yaml
+      egressip.yaml
     models-loader/
       pod.yaml
     pvc-models.yaml
@@ -69,6 +69,8 @@ Campos mais importantes:
 - `models.loader.*`
 - `extractionApi.*`
 - `videoWorker.*`
+- `videoWorker.service.loadBalancer.*`
+- `videoWorker.egressIP.enabled`
 - `route.extractionApi.*` (OpenShift)
 
 ## Exemplo de values para ambiente
@@ -99,10 +101,21 @@ extractionApi:
       size: 5Gi
 
 videoWorker:
+  replicaCount: 2
   cudaVisibleDevices: "0"
   gpu:
     enabled: true
     count: 1
+  service:
+    port: 19001
+    loadBalancer:
+      enabled: true
+      addressPool: "pool-vlan70"
+      loadBalancerIPs:
+        - "10.32.200.41"
+        - "10.32.200.42"
+  egressIP:
+    enabled: true
   cache:
     pvc:
       storageClassName: "ocs-storagecluster-ceph-rbd"
@@ -113,24 +126,31 @@ videoWorker:
       size: 20Gi
 ```
 
+Regra importante:
+
+- `videoWorker.service.loadBalancer.loadBalancerIPs` precisa ter **o mesmo numero de itens** de `videoWorker.replicaCount`.
+- `videoWorker.service.loadBalancer.addressPool` define o pool do MetalLB usado por todos os Services por pod.
+- Os mesmos IPs sao usados para criar os recursos `EgressIP` por pod.
+- O `namespaceSelector` dos recursos `EgressIP` e automatico: `kubernetes.io/metadata.name: <namespace do release Helm>`.
+
 ## Deploy (OpenShift)
 
 ### 1) Criar projeto/namespace
 
 ```bash
-oc new-project findface
+oc new-project findface-hml
 ```
 
 Ou, em Kubernetes:
 
 ```bash
-kubectl create namespace findface
+kubectl create namespace findface-hml
 ```
 
 ### 2) (Opcional) criar pull secret para registry privado
 
 ```bash
-oc -n findface create secret docker-registry regcred \
+oc -n findface-hml create secret docker-registry regcred \
   --docker-server=docker.int.ntl \
   --docker-username='<usuario>' \
   --docker-password='<senha>' \
@@ -141,14 +161,14 @@ oc -n findface create secret docker-registry regcred \
 
 ```bash
 helm lint ./charts/findface
-helm template findface ./charts/findface -n findface -f values-prod.yaml
+helm template findface ./charts/findface -n findface-hml -f values-prod.yaml
 ```
 
 ### 4) Instalar/atualizar release
 
 ```bash
 helm upgrade --install findface ./charts/findface \
-  -n findface \
+  -n findface-hml \
   -f values-prod.yaml
 ```
 
@@ -167,7 +187,7 @@ Ou por linha de comando:
 
 ```bash
 helm upgrade --install findface ./charts/findface \
-  -n findface \
+  -n findface-hml \
   -f values-prod.yaml \
   --set route.extractionApi.enabled=true \
   --set route.extractionApi.host=extraction-api.apps.seu-cluster.exemplo
@@ -215,10 +235,29 @@ oc -n openshift-gitops describe application findface-hml
 
 ```bash
 oc -n findface-hml get pods
+oc -n findface-hml get statefulset
 oc -n findface-hml get pvc
 oc -n findface-hml get svc
 oc -n findface-hml get route
+oc get egressip
 ```
+
+## Topologia do video-worker (StatefulSet + IP dedicado por pod)
+
+O `video-worker` foi modelado como `StatefulSet` para garantir:
+
+- PVC de cache separado por pod (`volumeClaimTemplates`)
+- PVC de recorder separado por pod (`volumeClaimTemplates`)
+- Service `LoadBalancer` separado por pod, com IP fixo vindo de `values.yaml`
+- IP/pool do MetalLB aplicados por Service via anotacoes (`metallb.io/loadBalancerIPs` e `metallb.io/address-pool`)
+- Recurso `EgressIP` separado por pod, usando o mesmo IP do Service correspondente
+
+Nomes gerados:
+
+- StatefulSet: `findface-video-worker`
+- Pod: `findface-video-worker-0`, `-1`, `-2`, ...
+- Service LoadBalancer por pod: `findface-video-worker-lb-<ordinal>`
+- EgressIP por pod: `egressip-video-worker-<ip-com-hifen>`
 
 ## Bootstrap dos models no PVC (oc rsync)
 
@@ -245,14 +284,14 @@ helm upgrade --install findface ./charts/findface \
 2) Esperar o pod ficar `Running`:
 
 ```bash
-oc -n findface-hml get pod findface-findface-models-loader -w
+oc -n findface-hml get pod findface-models-loader -w
 ```
 
 3) Copiar os models para o PVC montado:
 
 ```bash
 oc -n findface-hml rsync ./opt-server-export/models/ \
-  findface-findface-models-loader:/usr/share/findface-data/models/
+  findface-models-loader:/usr/share/findface-data/models/
 ```
 
 4) Desabilitar o loader:
@@ -283,29 +322,29 @@ models:
 ### Verificacao rapida
 
 ```bash
-oc -n findface-hml exec deploy/findface-findface-video-worker -- \
+oc -n findface-hml exec findface-video-worker-0 -- \
   ls -lah /usr/share/findface-data/models/detector
 ```
 
 Se os arquivos `.fnk` esperados aparecerem, reinicie o worker:
 
 ```bash
-oc -n findface-hml rollout restart deploy/findface-findface-video-worker
+oc -n findface-hml rollout restart statefulset/findface-video-worker
 ```
 
 ## Verificacao pos-deploy
 
 ```bash
-oc -n findface get pods
-oc -n findface get pvc
-oc -n findface get svc
-oc -n findface get route
+oc -n findface-hml get pods
+oc -n findface-hml get pvc
+oc -n findface-hml get svc
+oc -n findface-hml get route
 ```
 
 Conferir manifests renderizados do release aplicado:
 
 ```bash
-helm get manifest findface -n findface
+helm get manifest findface -n findface-hml
 ```
 
 ## Upgrade, rollback e uninstall
@@ -313,25 +352,25 @@ helm get manifest findface -n findface
 Upgrade:
 
 ```bash
-helm upgrade findface ./charts/findface -n findface -f values-prod.yaml
+helm upgrade findface ./charts/findface -n findface-hml -f values-prod.yaml
 ```
 
 Historico:
 
 ```bash
-helm history findface -n findface
+helm history findface -n findface-hml
 ```
 
 Rollback:
 
 ```bash
-helm rollback findface <REVISAO> -n findface
+helm rollback findface <REVISAO> -n findface-hml
 ```
 
 Uninstall:
 
 ```bash
-helm uninstall findface -n findface
+helm uninstall findface -n findface-hml
 ```
 
 ## Troubleshooting rapido
@@ -346,11 +385,12 @@ helm uninstall findface -n findface
   - Revise `externalDependencies.*` e politicas de rede.
 - PVC pendente:
   - Revise `storageClassName`, quotas e capacidade do cluster.
+- Erro no `helm template` sobre quantidade de IPs:
+  - Garanta que `videoWorker.service.loadBalancer.loadBalancerIPs` tenha o mesmo tamanho de `videoWorker.replicaCount`.
 - Necessidade de `hostNetwork`:
   - O padrao esta `false`; habilite somente se validado no seu ambiente.
 
 ## Observacoes de escopo
 
-- O chart foi simplificado para **um unico video-worker**.
 - A topologia completa FindFace Multi nao esta integralmente modelada aqui.
-- Antes de producao, valide dependencias externas, GPU e storage conforme sua infraestrutura.
+- Antes de producao, valide dependencias externas, GPU, EgressIP e storage conforme sua infraestrutura.

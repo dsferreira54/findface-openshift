@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ .Release.Name }}-findface-models-loader
+  name: findface-models-loader
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: models-loader
@@ -47,7 +47,7 @@ spec:
   volumes:
     - name: models
       persistentVolumeClaim:
-        claimName: {{ .Release.Name }}-findface-models
+        claimName: findface-models
 {{- with .Values.models.loader.nodeSelector }}
   nodeSelector:
 {{ toYaml . | indent 4 }}

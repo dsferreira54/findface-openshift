@@ -1,13 +1,18 @@
-{{- if and .Values.videoWorker.enabled .Values.videoWorker.service.enabled }}
+{{- if .Values.videoWorker.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-findface-video-worker
+  name: findface-video-worker
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: video-worker
+{{- with .Values.videoWorker.service.headless.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
 spec:
-  type: {{ .Values.videoWorker.service.type }}
+  clusterIP: None
+  publishNotReadyAddresses: {{ .Values.videoWorker.service.headless.publishNotReadyAddresses }}
   selector:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: video-worker

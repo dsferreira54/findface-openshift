@@ -1,0 +1,40 @@
+{{- if and .Values.videoWorker.enabled .Values.videoWorker.service.loadBalancer.enabled }}
+{{- $replicas := int .Values.videoWorker.replicaCount }}
+{{- $lbIPs := .Values.videoWorker.service.loadBalancer.loadBalancerIPs }}
+{{- if ne (len $lbIPs) $replicas }}
+{{- fail "videoWorker.service.loadBalancer.loadBalancerIPs must have the same number of entries as videoWorker.replicaCount" }}
+{{- end }}
+{{- $stsName := "findface-video-worker" }}
+{{- range $idx, $item := until $replicas }}
+{{- $annotations := dict "metallb.io/loadBalancerIPs" (index $lbIPs $idx) }}
+{{- if $.Values.videoWorker.service.loadBalancer.addressPool }}
+{{- $_ := set $annotations "metallb.io/address-pool" $.Values.videoWorker.service.loadBalancer.addressPool }}
+{{- end }}
+{{- range $key, $value := $.Values.videoWorker.service.loadBalancer.annotations }}
+{{- $_ := set $annotations $key $value }}
+{{- end }}
+{{- if gt $idx 0 }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ printf "%s-lb-%d" $stsName $idx }}
+  labels:
+    app.kubernetes.io/name: findface
+    app.kubernetes.io/component: video-worker
+    app.kubernetes.io/instance-index: "{{ $idx }}"
+  annotations:
+{{ toYaml $annotations | indent 4 }}
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: {{ $.Values.videoWorker.service.loadBalancer.externalTrafficPolicy }}
+  selector:
+    statefulset.kubernetes.io/pod-name: {{ printf "%s-%d" $stsName $idx }}
+  ports:
+    - name: streamer
+      protocol: TCP
+      port: {{ $.Values.videoWorker.service.port }}
+      targetPort: {{ $.Values.videoWorker.service.port }}
+{{- end }}
+{{- end }}
