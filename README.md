@@ -281,6 +281,56 @@ Detalhes por componente:
   - Service LoadBalancer por pod: `findface-video-worker-lb-<ordinal>`
   - EgressIP por pod: `egressip-video-worker-<ip-com-hifen>`
 
+### Diagrama Mermaid - video-worker
+
+```mermaid
+flowchart LR
+  VW_CM["ConfigMap\nfindface-video-worker"]
+  VW_STS["StatefulSet\nfindface-video-worker"]
+  VW_POD["Pod(s)\nfindface-video-worker-(ordinal)"]
+  VW_SVC_HEAD["Service (headless)\nfindface-video-worker"]
+  VW_SVC_LB["Service (LoadBalancer por pod)\nfindface-video-worker-lb-(ordinal)"]
+  VW_EIP["EgressIP por pod\negressip-video-worker-(ip-com-hifen)"]
+  SH_MODELS["PVC compartilhado\nfindface-models"]
+  VW_PVC_CACHE["PVC por pod\nvideo-worker-cache-findface-video-worker-(ordinal)"]
+  VW_PVC_REC["PVC por pod\nvideo-worker-recorder-findface-video-worker-(ordinal)"]
+
+  VW_CM --> VW_STS
+  SH_MODELS --> VW_STS
+  VW_PVC_CACHE --> VW_STS
+  VW_PVC_REC --> VW_STS
+  VW_STS --> VW_POD
+  VW_SVC_HEAD --> VW_POD
+  VW_SVC_LB --> VW_POD
+  VW_EIP --> VW_POD
+  VW_SVC_LB -. "mesmo IP" .- VW_EIP
+```
+
+### Diagrama Mermaid - extraction-api
+
+```mermaid
+flowchart LR
+  EX_CM["ConfigMap\nfindface-extraction-api"]
+  EX_STS["StatefulSet\nfindface-extraction-api"]
+  EX_POD["Pod(s)\nfindface-extraction-api-(ordinal)"]
+  EX_SVC_HEAD["Service (headless)\nfindface-extraction-api"]
+  EX_SVC_LB["Service (LoadBalancer por pod)\nfindface-extraction-api-lb-(ordinal)"]
+  EX_EIP["EgressIP por pod\negressip-extraction-api-(ip-com-hifen)"]
+  EX_ROUTE["Route (opcional)\nfindface-extraction-api"]
+  SH_MODELS["PVC compartilhado\nfindface-models"]
+  EX_PVC_CACHE["PVC por pod\nextraction-cache-findface-extraction-api-(ordinal)"]
+
+  EX_CM --> EX_STS
+  SH_MODELS --> EX_STS
+  EX_PVC_CACHE --> EX_STS
+  EX_STS --> EX_POD
+  EX_SVC_HEAD --> EX_POD
+  EX_SVC_LB --> EX_POD
+  EX_EIP --> EX_POD
+  EX_ROUTE --> EX_SVC_HEAD
+  EX_SVC_LB -. "mesmo IP" .- EX_EIP
+```
+
 ## Bootstrap dos models no PVC (oc rsync)
 
 Se o worker subir com erro como:

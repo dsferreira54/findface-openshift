@@ -69,7 +69,7 @@ extractionApi:
       annotations: {}
       externalTrafficPolicy: Cluster
       loadBalancerIPs:
-        - "10.32.200.40"
+        - "10.32.200.42"
   config:
     listenHost: "0.0.0.0"
   cache:
