@@ -16,12 +16,12 @@ Observado diretamente no export
 
 Inferido para modelagem Kubernetes/OpenShift
 - O export analisado representa um recorte parcial da topologia completa FindFace Multi.
-- O chart usa `Deployment` para extraction-api e `StatefulSet` para video-worker.
-- O video-worker usa Service `LoadBalancer` dedicado por pod e EgressIP dedicado por pod.
+- O chart usa `StatefulSet` para extraction-api e video-worker.
+- extraction-api e video-worker usam Service `LoadBalancer` dedicado por pod e EgressIP dedicado por pod.
 - hostNetwork fica desativado por padrao para reduzir acoplamento e necessidade de permissao adicional.
 
 Validacao humana pendente antes de producao
-- Confirmar se hostNetwork e obrigatorio para os video-workers no ambiente alvo.
+- Confirmar se hostNetwork e obrigatorio para os workloads no ambiente alvo.
 - Confirmar estrategia de GPU no cluster (nvidia.com/gpu, node selectors, capacidade real por node).
 - Confirmar politica de storage para modelos/cache (PVC compartilhado vs distribuicao por imagem/objeto).
 - Confirmar se componentes externos (NTLS/Video Manager/Video Storage) estao acessiveis a partir do namespace do OpenShift.
@@ -34,19 +34,20 @@ Recursos criados por este release
   - findface-video-worker
 - PVCs:
   - findface-models
-  - findface-extraction-cache
-- Deployments:
-  - findface-extraction-api
 - StatefulSets:
+  - findface-extraction-api
   - findface-video-worker
 - PVCs gerados pelo StatefulSet (um por pod):
+  - `extraction-cache-findface-extraction-api-<ordinal>`
   - `video-worker-cache-findface-video-worker-<ordinal>`
   - `video-worker-recorder-findface-video-worker-<ordinal>`
 - Services:
-  - findface-extraction-api
+  - findface-extraction-api (headless)
+  - findface-extraction-api-lb-<ordinal> (LoadBalancer por pod)
   - findface-video-worker (headless)
   - findface-video-worker-lb-<ordinal> (LoadBalancer por pod)
 - EgressIP (OpenShift OVN):
+  - `egressip-extraction-api-<ip-com-hifen>` (um por pod)
   - `egressip-video-worker-<ip-com-hifen>` (um por pod)
 - Route (opcional):
   - findface-extraction-api (quando route.extractionApi.enabled=true)

@@ -1,12 +1,13 @@
 {{- if .Values.extractionApi.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: findface-extraction-api
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: extraction-api
 spec:
+  serviceName: findface-extraction-api
   replicas: {{ .Values.extractionApi.replicaCount }}
   selector:
     matchLabels:
@@ -76,9 +77,6 @@ spec:
         - name: models
           persistentVolumeClaim:
             claimName: findface-models
-        - name: extraction-cache
-          persistentVolumeClaim:
-            claimName: findface-extraction-cache
 {{- with .Values.extractionApi.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
@@ -90,5 +88,22 @@ spec:
 {{- with .Values.extractionApi.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
+{{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: extraction-cache
+        labels:
+          app.kubernetes.io/name: findface
+          app.kubernetes.io/component: extraction-cache
+      spec:
+        accessModes:
+{{- range .Values.extractionApi.cache.pvc.accessModes }}
+          - {{ . }}
+{{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.extractionApi.cache.pvc.size }}
+{{- if .Values.extractionApi.cache.pvc.storageClassName }}
+        storageClassName: {{ .Values.extractionApi.cache.pvc.storageClassName }}
 {{- end }}
 {{- end }}

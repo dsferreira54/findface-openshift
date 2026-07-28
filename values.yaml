@@ -59,8 +59,17 @@ extractionApi:
     count: 1
   service:
     enabled: true
-    type: ClusterIP
     port: 18701
+    headless:
+      annotations: {}
+      publishNotReadyAddresses: true
+    loadBalancer:
+      enabled: true
+      addressPool: "pool-vlan70"
+      annotations: {}
+      externalTrafficPolicy: Cluster
+      loadBalancerIPs:
+        - "10.32.200.40"
   config:
     listenHost: "0.0.0.0"
   cache:
@@ -85,6 +94,8 @@ extractionApi:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  egressIP:
+    enabled: true
 
 videoWorker:
   enabled: true

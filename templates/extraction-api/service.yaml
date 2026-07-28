@@ -6,8 +6,13 @@ metadata:
   labels:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: extraction-api
+{{- with .Values.extractionApi.service.headless.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
 spec:
-  type: {{ .Values.extractionApi.service.type }}
+  clusterIP: None
+  publishNotReadyAddresses: {{ .Values.extractionApi.service.headless.publishNotReadyAddresses }}
   selector:
     app.kubernetes.io/name: findface
     app.kubernetes.io/component: extraction-api

@@ -1,0 +1,27 @@
+{{- if and .Values.extractionApi.enabled .Values.extractionApi.egressIP.enabled }}
+{{- $replicas := int .Values.extractionApi.replicaCount }}
+{{- $lbIPs := .Values.extractionApi.service.loadBalancer.loadBalancerIPs }}
+{{- if ne (len $lbIPs) $replicas }}
+{{- fail "extractionApi.service.loadBalancer.loadBalancerIPs must have the same number of entries as extractionApi.replicaCount for EgressIP generation" }}
+{{- end }}
+{{- $stsName := "findface-extraction-api" }}
+{{- range $idx, $item := until $replicas }}
+{{- $ip := index $lbIPs $idx }}
+{{- if gt $idx 0 }}
+---
+{{- end }}
+apiVersion: k8s.ovn.org/v1
+kind: EgressIP
+metadata:
+  name: {{ printf "egressip-extraction-api-%s" (replace "." "-" $ip) }}
+spec:
+  egressIPs:
+    - {{ $ip }}
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ $.Release.Namespace | quote }}
+  podSelector:
+    matchLabels:
+      statefulset.kubernetes.io/pod-name: {{ printf "%s-%d" $stsName $idx }}
+{{- end }}
+{{- end }}

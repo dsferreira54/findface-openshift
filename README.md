@@ -2,7 +2,7 @@
 
 Este chart implementa o recorte analisado do ambiente exportado:
 
-- `findface-extraction-api`
+- `findface-extraction-api` (escalavel via `extractionApi.replicaCount`)
 - `findface-video-worker` (escalavel via `videoWorker.replicaCount`)
 
 Dependencias externas permanecem fora do chart:
@@ -21,9 +21,10 @@ charts/findface/
   templates/
     extraction-api/
       configmap.yaml
-      pvc-cache.yaml
-      deployment.yaml
+      statefulset.yaml
       service.yaml
+      service-loadbalancers.yaml
+      egressip.yaml
       route.yaml
     video-worker/
       configmap.yaml
@@ -68,6 +69,8 @@ Campos mais importantes:
 - `models.pvc.*`
 - `models.loader.*`
 - `extractionApi.*`
+- `extractionApi.service.loadBalancer.*`
+- `extractionApi.egressIP.enabled`
 - `videoWorker.*`
 - `videoWorker.service.loadBalancer.*`
 - `videoWorker.egressIP.enabled`
@@ -92,9 +95,19 @@ models:
     size: 20Gi
 
 extractionApi:
+  replicaCount: 1
   gpu:
     enabled: true
     count: 1
+  service:
+    port: 18701
+    loadBalancer:
+      enabled: true
+      addressPool: "pool-vlan70"
+      loadBalancerIPs:
+        - "10.32.200.40"
+  egressIP:
+    enabled: true
   cache:
     pvc:
       storageClassName: "ocs-storagecluster-ceph-rbd"
@@ -126,11 +139,12 @@ videoWorker:
       size: 20Gi
 ```
 
-Regra importante:
+Regras importantes:
 
+- `extractionApi.service.loadBalancer.loadBalancerIPs` precisa ter **o mesmo numero de itens** de `extractionApi.replicaCount`.
 - `videoWorker.service.loadBalancer.loadBalancerIPs` precisa ter **o mesmo numero de itens** de `videoWorker.replicaCount`.
-- `videoWorker.service.loadBalancer.addressPool` define o pool do MetalLB usado por todos os Services por pod.
-- Os mesmos IPs sao usados para criar os recursos `EgressIP` por pod.
+- `extractionApi.service.loadBalancer.addressPool` e `videoWorker.service.loadBalancer.addressPool` definem o pool do MetalLB por componente.
+- Em cada componente, os mesmos IPs sao usados para criar os recursos `EgressIP` por pod.
 - O `namespaceSelector` dos recursos `EgressIP` e automatico: `kubernetes.io/metadata.name: <namespace do release Helm>`.
 
 ## Deploy (OpenShift)
@@ -242,22 +256,30 @@ oc -n findface-hml get route
 oc get egressip
 ```
 
-## Topologia do video-worker (StatefulSet + IP dedicado por pod)
+## Topologia por pod (StatefulSet + IP dedicado)
 
-O `video-worker` foi modelado como `StatefulSet` para garantir:
+`extraction-api` e `video-worker` seguem o mesmo padrao:
 
-- PVC de cache separado por pod (`volumeClaimTemplates`)
-- PVC de recorder separado por pod (`volumeClaimTemplates`)
-- Service `LoadBalancer` separado por pod, com IP fixo vindo de `values.yaml`
-- IP/pool do MetalLB aplicados por Service via anotacoes (`metallb.io/loadBalancerIPs` e `metallb.io/address-pool`)
-- Recurso `EgressIP` separado por pod, usando o mesmo IP do Service correspondente
+- StatefulSet por componente
+- Service headless para identidade de pod
+- Service `LoadBalancer` por pod, com IP fixo vindo de `values.yaml`
+- IP/pool do MetalLB por Service via anotacoes (`metallb.io/loadBalancerIPs` e `metallb.io/address-pool`)
+- Recurso `EgressIP` por pod, usando o mesmo IP do Service correspondente
 
-Nomes gerados:
+Detalhes por componente:
 
-- StatefulSet: `findface-video-worker`
-- Pod: `findface-video-worker-0`, `-1`, `-2`, ...
-- Service LoadBalancer por pod: `findface-video-worker-lb-<ordinal>`
-- EgressIP por pod: `egressip-video-worker-<ip-com-hifen>`
+- `extraction-api`
+  - StatefulSet: `findface-extraction-api`
+  - Pod: `findface-extraction-api-0`, `-1`, `-2`, ...
+  - PVC por pod: `extraction-cache-findface-extraction-api-<ordinal>`
+  - Service LoadBalancer por pod: `findface-extraction-api-lb-<ordinal>`
+  - EgressIP por pod: `egressip-extraction-api-<ip-com-hifen>`
+- `video-worker`
+  - StatefulSet: `findface-video-worker`
+  - Pod: `findface-video-worker-0`, `-1`, `-2`, ...
+  - PVCs por pod: `video-worker-cache-findface-video-worker-<ordinal>` e `video-worker-recorder-findface-video-worker-<ordinal>`
+  - Service LoadBalancer por pod: `findface-video-worker-lb-<ordinal>`
+  - EgressIP por pod: `egressip-video-worker-<ip-com-hifen>`
 
 ## Bootstrap dos models no PVC (oc rsync)
 
@@ -386,6 +408,7 @@ helm uninstall findface -n findface-hml
 - PVC pendente:
   - Revise `storageClassName`, quotas e capacidade do cluster.
 - Erro no `helm template` sobre quantidade de IPs:
+  - Garanta que `extractionApi.service.loadBalancer.loadBalancerIPs` tenha o mesmo tamanho de `extractionApi.replicaCount`.
   - Garanta que `videoWorker.service.loadBalancer.loadBalancerIPs` tenha o mesmo tamanho de `videoWorker.replicaCount`.
 - Necessidade de `hostNetwork`:
   - O padrao esta `false`; habilite somente se validado no seu ambiente.
