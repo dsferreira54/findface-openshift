@@ -157,12 +157,3 @@ videoWorker:
   affinity: {}
   egressIP:
     enabled: true
-
-route: #TODO: Consider removing this
-  extractionApi:
-    enabled: false
-    host: ""
-    tls:
-      enabled: true
-      termination: edge
-      insecureEdgeTerminationPolicy: Redirect

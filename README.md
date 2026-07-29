@@ -25,7 +25,6 @@ charts/findface/
       service.yaml
       service-loadbalancers.yaml
       egressip.yaml
-      route.yaml
     video-worker/
       configmap.yaml
       statefulset.yaml
@@ -74,7 +73,6 @@ Campos mais importantes:
 - `videoWorker.*`
 - `videoWorker.service.loadBalancer.*`
 - `videoWorker.egressIP.enabled`
-- `route.extractionApi.*` (OpenShift)
 
 ## Exemplo de values para ambiente
 
@@ -186,27 +184,6 @@ helm upgrade --install findface ./charts/findface \
   -f values-prod.yaml
 ```
 
-### 5) (Opcional) habilitar Route para extraction-api
-
-No `values-prod.yaml`:
-
-```yaml
-route:
-  extractionApi:
-    enabled: true
-    host: "extraction-api.apps.seu-cluster.exemplo"
-```
-
-Ou por linha de comando:
-
-```bash
-helm upgrade --install findface ./charts/findface \
-  -n findface-hml \
-  -f values-prod.yaml \
-  --set route.extractionApi.enabled=true \
-  --set route.extractionApi.host=extraction-api.apps.seu-cluster.exemplo
-```
-
 ## Deploy via OpenShift GitOps (Argo CD)
 
 Este repositorio inclui uma `Application` pronta para homologacao:
@@ -252,7 +229,6 @@ oc -n findface-hml get pods
 oc -n findface-hml get statefulset
 oc -n findface-hml get pvc
 oc -n findface-hml get svc
-oc -n findface-hml get route
 oc get egressip
 ```
 
@@ -316,7 +292,6 @@ flowchart LR
   EX_SVC_HEAD["Service (headless)\nfindface-extraction-api"]
   EX_SVC_LB["Service (LoadBalancer por pod)\nfindface-extraction-api-lb-(ordinal)"]
   EX_EIP["EgressIP por pod\negressip-extraction-api-(ip-com-hifen)"]
-  EX_ROUTE["Route (opcional)\nfindface-extraction-api"]
   SH_MODELS["PVC compartilhado\nfindface-models"]
   EX_PVC_CACHE["PVC por pod\nextraction-cache-findface-extraction-api-(ordinal)"]
 
@@ -327,7 +302,6 @@ flowchart LR
   EX_SVC_HEAD --> EX_POD
   EX_SVC_LB --> EX_POD
   EX_EIP --> EX_POD
-  EX_ROUTE --> EX_SVC_HEAD
   EX_SVC_LB -. "mesmo IP" .- EX_EIP
 ```
 
@@ -410,7 +384,6 @@ oc -n findface-hml rollout restart statefulset/findface-video-worker
 oc -n findface-hml get pods
 oc -n findface-hml get pvc
 oc -n findface-hml get svc
-oc -n findface-hml get route
 ```
 
 Conferir manifests renderizados do release aplicado:

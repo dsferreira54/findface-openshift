@@ -49,5 +49,3 @@ Recursos criados por este release
 - EgressIP (OpenShift OVN):
   - `egressip-extraction-api-<ip-com-hifen>` (um por pod)
   - `egressip-video-worker-<ip-com-hifen>` (um por pod)
-- Route (opcional):
-  - findface-extraction-api (quando route.extractionApi.enabled=true)
